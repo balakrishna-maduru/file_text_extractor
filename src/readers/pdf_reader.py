@@ -27,12 +27,7 @@ class PDFReader:
         for page_index in range(len(doc)):
             page = doc.load_page(page_index)
             blocks = page.get_text("dict")["blocks"]  # Extract text blocks as dict
-
             content_items = []
-
-            print(f"Processing page {page_index + 1}/{len(doc)}")
-
-            # Process text blocks
             for block in blocks:
                 if "lines" in block:
                     block_text = ""
@@ -47,21 +42,16 @@ class PDFReader:
                 xref = img[0]  # The first item is the xref
                 base_image = doc.extract_image(xref)
                 image_bytes = base_image["image"]
-                image_filename = f"image_{page_index}_{xref}.png"
-
-                # Save the image locally
-                with open(image_filename, "wb") as image_file:
-                    image_file.write(image_bytes)
 
                 # Get the image's position using get_image_rects
                 image_rects = page.get_image_rects(xref)
                 if image_rects:
                     y0_position = image_rects[0].y0  # Use y0 from the first rect
 
-                    # Process the image through the conversion API
+                    # Process the image in memory through the conversion API
                     if image_conversion_api:
-                        extracted_text = image_conversion_api(image_filename)
-                        print(f"Extracted text from image: {extracted_text[:50]}...")
+                        image_stream = io.BytesIO(image_bytes)  # Create an in-memory file-like object
+                        extracted_text = image_conversion_api(image_stream)  # Pass the in-memory image to the API
                         content_items.append((y0_position, extracted_text))  # Use y0 of the image as the position
 
             # Sort all content items by their y-position (to maintain the order on the page)
@@ -71,7 +61,6 @@ class PDFReader:
             page_content = [item[1] for item in content_items]
             page_text = "\n".join(page_content).strip()
             full_text.append(page_text)
-            print(f"Page content length: {len(page_text)}")
 
         final_text = "\n".join(full_text)
         print(f"Final text length: {len(final_text)}")
